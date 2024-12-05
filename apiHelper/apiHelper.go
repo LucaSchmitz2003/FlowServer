@@ -8,9 +8,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/pkg/errors"
+	files "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"go.opentelemetry.io/otel"
 	"net"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"sync"
@@ -71,6 +74,9 @@ func InitServer(ctx context.Context, defineRoutes DefineRoutesFunc) (string, *gi
 		logger.Warn(ctx, err)
 		port = "8080"
 	}
+
+	// Initialize the Swagger documentation
+	initSwaggerDocs(ctx, router)
 
 	return fmt.Sprintf("%s:%s", serverName, port), router
 }
@@ -156,4 +162,51 @@ func anonymizeIP(ip string) string {
 		}
 	}
 	return ip
+}
+
+// initSwaggerDocs initializes the Swagger documentation for the API using the swag tool from the correct wd.
+func initSwaggerDocs(ctx context.Context, router *gin.Engine) {
+	// Create a span
+	ctx, span := tracer.Start(ctx, "Initialize the Swagger documentation")
+	defer span.End()
+
+	// Dynamically get the current working directory
+	dir, err1 := os.Getwd()
+	if err1 != nil {
+		err1 = errors.Wrap(err1, "Failed to get current working directory")
+		logger.Fatal(ctx, err1)
+	}
+
+	// Run the swag init command to generate the Swagger documentation
+	cmd := exec.Command("swag", "init")
+	cmd.Dir = dir
+	err2 := cmd.Run()
+	if err2 != nil {
+		err2 = errors.Wrap(err2, "Failed to generate Swagger documentation")
+		logger.Fatal(ctx, err2)
+	}
+
+	// Configure the Swagger-UI to explicitly use swagger.json
+	url := ginSwagger.URL("/docs/swagger.json") // Tell Swagger-UI where to find the JSON file
+
+	// Register the Swagger UI routes and redirect the /docs route to the index.html
+	router.GET("/docs/*any", func(c *gin.Context) {
+		if c.Request.URL.Path == "/docs" || c.Request.URL.Path == "/docs/" {
+			// Redirection to index.html
+			c.Redirect(302, "/docs/index.html")
+			return
+		} else if c.Request.URL.Path == "/docs/swagger.yaml" {
+			// Directly deliver Swagger YAML
+			c.File("./docs/swagger.yaml")
+			return
+		} else if c.Request.URL.Path == "/docs/swagger.json" {
+			// Directly deliver Swagger JSON
+			c.File("./docs/swagger.json")
+			return
+		}
+
+		// Standard Swagger-UI handler
+		ginSwagger.WrapHandler(files.Handler, url)(c)
+	})
+	logger.Info(ctx, "Swagger UI route registered at /docs")
 }
