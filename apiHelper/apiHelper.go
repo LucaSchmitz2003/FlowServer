@@ -12,11 +12,12 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"go.opentelemetry.io/otel"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
+	"os/signal"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -81,15 +82,55 @@ func InitServer(ctx context.Context, defineRoutes DefineRoutesFunc) (string, *gi
 	return fmt.Sprintf("%s:%s", serverName, port), router
 }
 
-// StartServer starts the server asynchronously.
-func StartServer(ctx context.Context, waitGroup *sync.WaitGroup, router *gin.Engine, address string) {
-	defer waitGroup.Done()
+// StartServer starts the server asynchronously and returns a keep-alive function for deferred use.
+func StartServer(ctx context.Context, router *gin.Engine, address string) func() {
+	server := &http.Server{
+		Addr:    address,
+		Handler: router,
+	}
 
-	// Start the server
-	err := router.Run(address)
-	if err != nil {
-		err = errors.Wrap(err, "Failed to run server")
-		logger.Fatal(ctx, err)
+	// Channel to listen for OS signals
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, os.Interrupt, os.Kill)
+
+	// Context to manage server shutdown
+	shutdownCtx, shutdownCancel := context.WithCancel(ctx)
+
+	// Run the server in a goroutine
+	go func() {
+		logger.Info(ctx, "Starting server on ", address)
+		err := server.ListenAndServe() // ToDo: Add TLS support (ListenAndServeTLS())
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Fatal(ctx, errors.Wrap(err, "Server encountered an error"))
+		}
+	}()
+
+	// Goroutine to handle shutdown signals
+	go func() {
+		select {
+		case <-signalChan:
+			logger.Info(ctx, "Received termination signal, shutting down server...")
+			shutdownCancel()
+		case <-shutdownCtx.Done():
+		}
+	}()
+
+	// Return a keep-alive function that waits for shutdown
+	return func() {
+		<-shutdownCtx.Done()
+
+		// Graceful shutdown
+		logger.Info(ctx, "Shutting down server gracefully...")
+
+		gracefulCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		err := server.Shutdown(gracefulCtx)
+		if err != nil {
+			logger.Fatal(ctx, errors.Wrap(err, "Failed to shutdown server gracefully"))
+		}
+
+		logger.Info(ctx, "Server shutdown complete.")
 	}
 }
 
