@@ -1,4 +1,4 @@
-module FlowServer
+module github.com/LucaSchmitz2003/FlowServer
 
 go 1.23.4
 
