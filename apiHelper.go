@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/LucaSchmitz2003/FlowWatch/loggingHelper"
+	"github.com/LucaSchmitz2003/FlowWatch"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/pkg/errors"
@@ -23,7 +23,7 @@ import (
 
 var (
 	tracer = otel.Tracer("ServerTracer")
-	logger = loggingHelper.GetLogHelper()
+	logger = FlowWatch.GetLogHelper()
 )
 
 type DefineRoutesFunc func(ctx context.Context, router *gin.Engine)
