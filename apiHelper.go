@@ -14,7 +14,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"os/signal"
 	"strconv"
 	"strings"
@@ -210,22 +209,6 @@ func initSwaggerDocs(ctx context.Context, router *gin.Engine) {
 	// Create a span
 	ctx, span := tracer.Start(ctx, "Initialize the Swagger documentation")
 	defer span.End()
-
-	// Dynamically get the current working directory
-	dir, err1 := os.Getwd()
-	if err1 != nil {
-		err1 = errors.Wrap(err1, "Failed to get current working directory")
-		logger.Fatal(ctx, err1)
-	}
-
-	// Run the swag init command to generate the Swagger documentation
-	cmd := exec.Command("swag", "init")
-	cmd.Dir = dir
-	err2 := cmd.Run()
-	if err2 != nil {
-		err2 = errors.Wrap(err2, "Failed to generate Swagger documentation")
-		logger.Fatal(ctx, err2)
-	}
 
 	// Configure the Swagger-UI to explicitly use swagger.json
 	url := ginSwagger.URL("/docs/swagger.json") // Tell Swagger-UI where to find the JSON file
