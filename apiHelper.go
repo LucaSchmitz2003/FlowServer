@@ -62,9 +62,9 @@ func InitServer(ctx context.Context, defineRoutes DefineRoutesFunc) (string, *gi
 	defineRoutes(ctx, router)
 
 	// Set up the server address
-	serverName := os.Getenv("SERVER_IP")
+	serverName := os.Getenv("DOMAIN")
 	if serverName == "" {
-		err := errors.New("SERVER_IP not set, using default")
+		err := errors.New("DOMAIN not set, using default")
 		logger.Warn(ctx, err)
 		serverName = "0.0.0.0"
 	}
