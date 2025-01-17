@@ -28,7 +28,7 @@ var (
 type DefineRoutesFunc func(ctx context.Context, router *gin.Engine)
 
 // InitServer initializes the server and returns the server address and router.
-func InitServer(ctx context.Context, defineRoutes DefineRoutesFunc) (string, *gin.Engine) {
+func InitServer(ctx context.Context, defineRoutes DefineRoutesFunc, acceptedOrigins []string) (string, *gin.Engine) {
 	// Create a span
 	ctx, span := tracer.Start(ctx, "Initialize server")
 	defer span.End()
@@ -51,6 +51,9 @@ func InitServer(ctx context.Context, defineRoutes DefineRoutesFunc) (string, *gi
 
 	// Create a new router instance with default middleware
 	router := gin.New()
+
+	// Use CORS middleware and allow given origins
+	router.Use(CORSMiddleware(ctx, acceptedOrigins))
 
 	// Load the standard gin recovery middleware
 	router.Use(gin.Recovery())
