@@ -36,7 +36,7 @@ func InitServer(ctx context.Context, defineRoutes DefineRoutesFunc, acceptedOrig
 	router := gin.New()
 
 	// Add the server address to the accepted origins to allow same-origin requests
-	acceptedOrigins = append(acceptedOrigins, serverAddress)
+	acceptedOrigins = append(acceptedOrigins, "http://"+serverAddress) // ToDo: Check if https is needed
 
 	// Use CORS middleware and allow given origins
 	router.Use(CORSMiddleware(ctx, acceptedOrigins))
