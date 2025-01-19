@@ -35,6 +35,9 @@ func InitServer(ctx context.Context, defineRoutes DefineRoutesFunc, acceptedOrig
 	// Create a new router instance with default middleware
 	router := gin.New()
 
+	// Add the server address to the accepted origins to allow same-origin requests
+	acceptedOrigins = append(acceptedOrigins, serverAddress)
+
 	// Use CORS middleware and allow given origins
 	router.Use(CORSMiddleware(ctx, acceptedOrigins))
 
