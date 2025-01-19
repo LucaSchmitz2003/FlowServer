@@ -22,6 +22,13 @@ func CORSMiddleware(ctx context.Context, acceptedOrigins []string) gin.HandlerFu
 		ctx := c.Request.Context()
 		origin := c.Request.Header.Get("Origin")
 
+		// Allow same-origin requests
+		if origin == "" {
+			logger.Debug(ctx, "No origin header found, allowing same-origin request")
+			c.Next() // Go to the actual request
+			return
+		}
+
 		// Check if the given origin is accepted
 		var acceptedOrigin bool
 		for _, o := range acceptedOrigins {
